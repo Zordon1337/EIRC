@@ -1,7 +1,9 @@
-﻿using System;
+﻿using EIRC;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Sockets;
+using System.Runtime.Remoting.Channels;
 using System.Threading;
 
 namespace IRCServerEmulator
@@ -109,6 +111,10 @@ namespace IRCServerEmulator
                 case "NICK":
                     HandleNick(parameter);
                     break;
+                case "QUIT":
+                    HandleQuit();
+                    break;
+
             }
         }
 
@@ -116,7 +122,24 @@ namespace IRCServerEmulator
         {
             Username = parameter;
             Console.WriteLine($"User {Username} identified");
-            writer.WriteLine("");
+            //writer.WriteLine("");
+        }
+        private void HandleQuit()
+        {
+            foreach(var client in Program.clients)
+            {
+                Console.WriteLine($"foreaching to {client.Username} ");
+                foreach (var channel in joinedChannels)
+                {
+                    Console.WriteLine($"foreaching PART to {client.Username} in {channel}");
+                    if (client.IsInChannel(channel))
+                    {
+                        Console.WriteLine($"Writing PART to {client.Username} in {channel}");
+                        Utils.SendNotice(channel,$"{Username} left this channel", client.writer);
+                        Program.clients.Remove(this);
+                    }
+                }
+            }
         }
         private List<string> joinedChannels = new List<string>();
 
@@ -126,6 +149,22 @@ namespace IRCServerEmulator
             {
                 joinedChannels.Add(channel);
                 Console.WriteLine($"{Username} JOINed {channel}");
+                foreach (var client in Program.clients)
+                {
+                    
+                    Console.WriteLine($"foreaching PART to {client.Username} in {channel}");
+                    if (client.IsInChannel(channel))
+                    {
+                        Console.WriteLine($"Writing PART to {client.Username} in {channel}");
+                        string usernamelist = $"{Username}";
+                        foreach (var user in Program.clients)
+                        {
+                            usernamelist += " " + user.Username;
+                        }
+                        //this.writer.WriteLine($":{Program.serverHostname} 353 = {channel} :{usernamelist}");
+                        Utils.SendNotice(channel, $"{Username} joined this channel", client.writer);
+                    }
+                }
             }
         }
 
@@ -145,11 +184,16 @@ namespace IRCServerEmulator
                         writer.WriteLine($"{Username}, You're restricted from joining this channel");
                         return;
                     }
+                    string usernamelist = $"{Username}";
+                    foreach (var user in Program.clients)
+                    {
+                        usernamelist += " " + user.Username;
+                    }
                     JoinChannel(channel);
                     writer.WriteLine($":{Program.serverHostname} 331 {Username} {channel} :NO_TOPIC");
                     writer.WriteLine($":{Program.serverHostname} 332 {Username} {channel} :troll_face");
                     writer.WriteLine($":{Program.serverHostname} 333 {Username} {channel} {Username}!user@host 1234567890");
-                    writer.WriteLine($":{Program.serverHostname} 353 {Username} = {channel} :{Username}");
+                    writer.WriteLine($":{Program.serverHostname} 353 = {channel} :{usernamelist}");
                     writer.WriteLine($":{Program.serverHostname} 366 {Username} {channel} :End of /NAMES list.");
                     writer.WriteLine($":{Username}!user@host JOIN :{channel}");
                 }
