@@ -81,7 +81,7 @@ namespace IRCServerEmulator
 
         private void SendWelcomeMessage()
         {
-            writer.WriteLine("ANNOUCE AUTH :*** Welcome to IRC Server Emulator ***");
+            writer.WriteLine("Welcome to pierdolnik irc");
         }
 
         private void ProcessCommand(string message)
@@ -104,7 +104,10 @@ namespace IRCServerEmulator
                     HandleJoin(parameter);
                     break;
                 case "PRIVMSG":
-                    HandlePrivMsg(parts);
+                    HandlePrivMsg(parts, message);
+                    break;
+                case "NICK":
+                    HandleNick(parameter);
                     break;
             }
         }
@@ -113,6 +116,7 @@ namespace IRCServerEmulator
         {
             Username = parameter;
             Console.WriteLine($"User {Username} identified");
+            writer.WriteLine("");
         }
         private List<string> joinedChannels = new List<string>();
 
@@ -136,9 +140,14 @@ namespace IRCServerEmulator
             {
                 if (tcpClient.Connected)
                 {
+                    if(!channel.Contains("#"))
+                    {
+                        writer.WriteLine($"{Username}, You're restricted from joining this channel");
+                        return;
+                    }
                     JoinChannel(channel);
-                    writer.WriteLine($":{Program.serverHostname} 331 {Username} {channel} :No topic is set");
-                    writer.WriteLine($":{Program.serverHostname} 332 {Username} {channel} :Channel topic goes here");
+                    writer.WriteLine($":{Program.serverHostname} 331 {Username} {channel} :NO_TOPIC");
+                    writer.WriteLine($":{Program.serverHostname} 332 {Username} {channel} :troll_face");
                     writer.WriteLine($":{Program.serverHostname} 333 {Username} {channel} {Username}!user@host 1234567890");
                     writer.WriteLine($":{Program.serverHostname} 353 {Username} = {channel} :{Username}");
                     writer.WriteLine($":{Program.serverHostname} 366 {Username} {channel} :End of /NAMES list.");
@@ -146,27 +155,52 @@ namespace IRCServerEmulator
                 }
             }
         }
-
-        private void HandlePrivMsg(string[] parts)
+        private void HandleNick(string nick)
         {
-            if (parts.Length < 4)
-                return;
-            string target = parts[2];
-            string message = string.Join(" ", parts, 3, parts.Length - 3);
-            lock (Program.lockObject)
-            {
-                Console.WriteLine($"Received PRIVMSG. Target: {target}, Message: {message}");
+            Username = nick.Replace("-osu", "");
 
+
+        }
+        private void HandlePrivMsg(string[] parts, string fullmsg)
+        {
+            if (parts.Length <= 1)
+                return;
+            string target = parts[1];
+           
+            var message = fullmsg.Split(':')[1].Replace(":","");
+
+            
+
+            lock(Program.lockObject)
+            {
                 if (tcpClient.Connected)
                 {
+                    
                     foreach (var user in Program.clients)
                     {
+                        
                         if (user.tcpClient.Connected && user.Username != null && user.Username != Username)
                         {
                             if (user.IsInChannel(target))
                             {
-                               
-                                user.writer.WriteLine($":{Username}!user@host PRIVMSG {target} :{message}");
+                                
+                                user.writer.WriteLine($":{Username} PRIVMSG {target} :{message}");
+                            } else
+                            {
+                                Console.WriteLine("the magic part is "+parts[2]);
+                                if (!parts[2].Contains("#"))
+                                {
+                                    Console.WriteLine("passed 1");
+                                    Console.WriteLine(user.Username);
+                                    Console.WriteLine(parts[1].Replace(":", ""));
+                                    // then its priv msg
+                                    if (user.Username == parts[1].Replace(":",""))
+                                    {
+                                        Console.WriteLine("passed 2");
+                                        Console.WriteLine($":{Username} PRIVMSG {user.Username} :{message}");
+                                        user.writer.WriteLine($":{Username} PRIVMSG {user.Username} :{message}");
+                                    }
+                                }
                             }
                         }
                     }
