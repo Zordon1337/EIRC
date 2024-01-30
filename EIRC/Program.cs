@@ -187,16 +187,16 @@ namespace IRCServerEmulator
                                 user.writer.WriteLine($":{Username} PRIVMSG {target} :{message}");
                             } else
                             {
-                                Console.WriteLine("the magic part is "+parts[2]);
+                                
                                 if (!parts[2].Contains("#"))
                                 {
-                                    Console.WriteLine("passed 1");
+                                    
                                     Console.WriteLine(user.Username);
                                     Console.WriteLine(parts[1].Replace(":", ""));
                                     // then its priv msg
                                     if (user.Username == parts[1].Replace(":",""))
                                     {
-                                        Console.WriteLine("passed 2");
+                                        
                                         Console.WriteLine($":{Username} PRIVMSG {user.Username} :{message}");
                                         user.writer.WriteLine($":{Username} PRIVMSG {user.Username} :{message}");
                                     }
